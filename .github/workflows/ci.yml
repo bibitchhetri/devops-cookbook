@@ -6,45 +6,98 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NODE_VERSION: '22'
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-    # 1. Checkout your code
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-    # 2. Set up Node.js
+    - name: Get short commit SHA
+      id: sha
+      run: echo "short_sha=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+    - name: Extract version from package.json
+      id: version
+      run: |
+        VERSION=$(node -p "require('./package.json').version")
+        echo "app_version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Set up QEMU for multi-platform builds
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Cache Docker layers
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '22'
+        node-version: ${{ env.NODE_VERSION }}
 
-    # 3. Install dependencies
     - name: Install dependencies
-      run: npm install
+      run: npm ci
 
-    # 4. Run tests (optional)
     - name: Run tests
       run: npm test || echo "No tests defined"
 
-    # 5. Build Docker image
-    - name: Build Docker image
-      run: docker build -t devops-app:latest .
+    - name: Login to GHCR (GitHub Container Registry)
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-    # 6. Log in to Docker Hub (only on main branch push)
-    - name: Docker login
+    - name: Login to Docker Hub
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    # 7. Tag & push Docker image (only on main branch push)
-    - name: Push Docker image
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    - name: Build and push multi-platform Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/arm64,linux/amd64
+        push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        tags: |
+          ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.app_version }}-arm64
+          ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.app_version }}-amd64
+          ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.sha.outputs.short_sha }}-arm64
+          ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.sha.outputs.short_sha }}-amd64
+          ghcr.io/${{ env.IMAGE_NAME }}:latest-arm64
+          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'bibitkunwar/devops-app:${{ steps.version.outputs.app_version }}-arm64' || '' }}
+          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'bibitkunwar/devops-app:${{ steps.version.outputs.app_version }}-amd64' || '' }}
+          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'bibitkunwar/devops-app:${{ steps.sha.outputs.short_sha }}-arm64' || '' }}
+          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'bibitkunwar/devops-app:${{ steps.sha.outputs.short_sha }}-amd64' || '' }}
+          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'bibitkunwar/devops-app:latest' || '' }}
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+        build-args: |
+          NODE_VERSION=${{ env.NODE_VERSION }}
+
+    - name: Move cache
       run: |
-        docker tag devops-app:latest bibitkunwar/devops-app:latest
-        docker push bibitkunwar/devops-app:latest
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
