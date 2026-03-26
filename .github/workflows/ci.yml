@@ -78,7 +78,7 @@ jobs:
       id: dockerhub-tags
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
-        echo "tags=bibitkunwar/devops-app:${{ steps.version.outputs.app_version }}-arm64\nbibitkunwar/devops-app:${{ steps.version.outputs.app_version }}-amd64\nbibitkunwar/devops-app:${{ steps.sha.outputs.short_sha }}-arm64\nbibitkunwar/devops-app:${{ steps.sha.outputs.short_sha }}-amd64\nbibitkunwar/devops-app:latest" >> $GITHUB_OUTPUT
+        echo "tags=bibitkunwar/devops-app:${{ steps.version.outputs.app_version }}-arm64,bibitkunwar/devops-app:${{ steps.version.outputs.app_version }}-amd64,bibitkunwar/devops-app:${{ steps.sha.outputs.short_sha }}-arm64,bibitkunwar/devops-app:${{ steps.sha.outputs.short_sha }}-amd64,bibitkunwar/devops-app:latest" >> $GITHUB_OUTPUT
 
     - name: Build and push multi-platform Docker image
       uses: docker/build-push-action@v5
