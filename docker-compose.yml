@@ -1,0 +1,13 @@
+version: '3.9'
+
+services:
+  app:
+    image: devops-app:1.0
+    build:
+      context: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/usr/src/app   # Mount local folder into container
+      - /usr/src/app/node_modules  # Keep container node_modules
+    command: npm run dev   # Use nodemon for live reload
