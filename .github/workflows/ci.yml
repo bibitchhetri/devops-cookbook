@@ -74,6 +74,12 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
+    - name: Set up tags for Docker Hub
+      id: dockerhub-tags
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        echo "tags=bibitkunwar/devops-app:${{ steps.version.outputs.app_version }}-arm64\nbibitkunwar/devops-app:${{ steps.version.outputs.app_version }}-amd64\nbibitkunwar/devops-app:${{ steps.sha.outputs.short_sha }}-arm64\nbibitkunwar/devops-app:${{ steps.sha.outputs.short_sha }}-amd64\nbibitkunwar/devops-app:latest" >> $GITHUB_OUTPUT
+
     - name: Build and push multi-platform Docker image
       uses: docker/build-push-action@v5
       with:
@@ -86,17 +92,14 @@ jobs:
           ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.sha.outputs.short_sha }}-arm64
           ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.sha.outputs.short_sha }}-amd64
           ghcr.io/${{ env.IMAGE_NAME }}:latest-arm64
-          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'bibitkunwar/devops-app:${{ steps.version.outputs.app_version }}-arm64' || '' }}
-          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'bibitkunwar/devops-app:${{ steps.version.outputs.app_version }}-amd64' || '' }}
-          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'bibitkunwar/devops-app:${{ steps.sha.outputs.short_sha }}-arm64' || '' }}
-          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'bibitkunwar/devops-app:${{ steps.sha.outputs.short_sha }}-amd64' || '' }}
-          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'bibitkunwar/devops-app:latest' || '' }}
+          ${{ steps.dockerhub-tags.outputs.tags }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
         build-args: |
           NODE_VERSION=${{ env.NODE_VERSION }}
 
     - name: Move cache
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         rm -rf /tmp/.buildx-cache
         mv /tmp/.buildx-cache-new /tmp/.buildx-cache
