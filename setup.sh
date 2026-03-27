@@ -258,23 +258,9 @@ else
 	log_warn "Grafana container not found"
 fi
 
-# Configure Grafana datasources
+# Configure Grafana datasources (now using provisioning)
 log_info "Configuring Grafana datasources..."
-
-# Add Prometheus datasource
-log_info "Adding Prometheus datasource to Grafana..."
-curl -s -u admin:admin -X POST \
-	-H "Content-Type: application/json" \
-	-d '{"name":"Prometheus","type":"prometheus","url":"http://prometheus:9090","access":"proxy"}' \
-	"http://localhost:3001/api/datasources" >/dev/null 2>&1 || log_warn "Failed to add Prometheus datasource (may already exist)"
-
-# Add Loki datasource
-log_info "Adding Loki datasource to Grafana..."
-curl -s -u admin:admin -X POST \
-	-H "Content-Type: application/json" \
-	-d '{"name":"Loki","type":"loki","url":"http://loki:3100","access":"proxy"}' \
-	"http://localhost:3001/api/datasources" >/dev/null 2>&1 || log_warn "Failed to add Loki datasource (may already exist)"
-
+log_info "Datasources are automatically provisioned via grafana/provisioning"
 log_success "Grafana datasources configured"
 
 # ============================================
