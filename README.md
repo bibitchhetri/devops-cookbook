@@ -84,7 +84,7 @@ Create a `.env` file in the project root with the following variables:
 
 ```bash
 # VM Configuration
-VM_IP=192.168.2.12        # Your Multipass VM IP (update after provisioning)
+VM_IP=<your-vm-ip># Your Multipass VM IP (update after provisioning)
 APP_PORT=3000             # Application port
 
 # Loki Configuration (optional - for log aggregation)
@@ -147,8 +147,8 @@ curl -s -u admin:admin -X POST -H "Content-Type: application/json" -d '{"name":"
 
 | Service | URL | Expected |
 |---------|-----|----------|
-| Health | http://192.168.2.8:3000/health | `{"status":"UP"}` |
-| Metrics | http://192.168.2.8:3000/metrics | Prometheus metrics |
+| Health | http://<your-vm-ip>:3000/health | `{"status":"UP"}` |
+| Metrics | http://<your-vm-ip>:3000/metrics | Prometheus metrics |
 | Prometheus | http://localhost:9090 | Target: `up` |
 | Grafana | http://localhost:3001 | Login: admin/admin |
 | Loki | http://localhost:3100 | Ready status |
@@ -224,7 +224,7 @@ process_open_fds
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VM_IP` | Multipass VM IP address | `192.168.2.12` |
+| `VM_IP` | Multipass VM IP address | `your-vm-ip` |
 | `APP_PORT` | Application port | `3000` |
 | `LOKI_IP` | Loki container IP | `172.18.0.6` |
 | `LOKI_PORT` | Loki port | `3100` |
