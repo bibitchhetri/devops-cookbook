@@ -1,0 +1,77 @@
+---
+- name: Setup GitHub Self-Hosted Runner
+  hosts: all
+  become: yes
+  vars:
+    runner_user: ubuntu
+    runner_repo: "{{ repo_name }}"
+    runner_token: "{{ runner_token }}"
+    runner_labels: "self-hosted,linux,arm64,amd64"
+    runner_version: "2.321.0"
+
+  tasks:
+    - name: Create runner user
+      user:
+        name: "{{ runner_user }}"
+        shell: /bin/bash
+        system: yes
+
+    - name: Create runner directory
+      file:
+        path: /opt/github-runner
+        state: directory
+        owner: "{{ runner_user }}"
+        group: "{{ runner_user }}"
+        mode: '0755'
+
+    - name: Download runner package
+      get_url:
+        url: "https://github.com/actions/runner/releases/download/v{{ runner_version }}/actions-runner-linux-x64-{{ runner_version }}.tar.gz"
+        dest: "/tmp/actions-runner-linux-x64-{{ runner_version }}.tar.gz"
+        mode: '0644'
+
+    - name: Extract runner
+      unarchive:
+        src: "/tmp/actions-runner-linux-x64-{{ runner_version }}.tar.gz"
+        dest: /opt/github-runner
+        owner: "{{ runner_user }}"
+        group: "{{ runner_user }}"
+        remote_src: yes
+        creates: /opt/github-runner/bin/runner
+
+    - name: Create runner token directory
+      file:
+        path: /opt/github-runner/_runner_token
+        state: directory
+        owner: "{{ runner_user }}"
+        group: "{{ runner_user }}"
+        mode: '0700'
+
+    - name: Write runner token
+      copy:
+        dest: /opt/github-runner/_runner_token/token
+        content: "{{ runner_token }}"
+        owner: "{{ runner_user }}"
+        group: "{{ runner_user }}"
+        mode: '0600'
+
+    - name: Configure runner
+      command: "./config.sh --url https://github.com/{{ runner_repo }} --token {{ runner_token }} --labels {{ runner_labels }} --unattended --replace"
+      args:
+        chdir: /opt/github-runner
+        creates: /opt/github-runner/.runner
+
+    - name: Install runner as service
+      command: "./svc.sh install"
+      args:
+        chdir: /opt/github-runner
+
+    - name: Start runner service
+      command: "./svc.sh start"
+      args:
+        chdir: /opt/github-runner
+
+    - name: Cleanup installer
+      file:
+        path: "/tmp/actions-runner-linux-x64-{{ runner_version }}.tar.gz"
+        state: absent
